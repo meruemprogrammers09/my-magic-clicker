@@ -3,93 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Симулятор Кодера 4.0 🔮</title>
+    <title>Серия Пенальти Pro</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main>
-      <div class="card" id="card">
-        <!-- Блок уровня и опыта -->
-        <div class="player-stats">
-          <div class="level-text">
-            Ранг: <span id="rank-name">Нубик 👶</span>
-          </div>
-          <div class="xp-bar-container">
-            <div class="xp-bar-fill" id="xp-fill" style="width: 0%"></div>
-          </div>
-          <div class="xp-text">
-            До уровня: <span id="clicks-left">5</span> XP
-          </div>
-          <div
-            id="auto-status"
-            style="
-              font-size: 11px;
-              color: #74b9ff;
-              margin-top: 5px;
-              font-weight: bold;
-              display: none;
-            "
-          >
-            🤖 ИИ-помощник активен: +1 XP/сек
-          </div>
-          <div class="crit-tokens-display">
-            ✨ Крит-жетоны: <span id="crit-tokens-count">0</span>
-          </div>
-        </div>
+    <div class="container">
+      <h1>⚽ Серия Пенальти</h1>
 
-        <h1>Твое предсказание 🔮</h1>
-        <p class="prediction-text" id="text">
-          Нажми на кнопку, чтобы начать прокачку...
-        </p>
-        <button class="magic-button" id="btn">Написать код (+1 XP)</button>
-
-        <!-- ГРАНДИОЗНЫЙ МАГАЗИН БУСТОВ -->
-        <div class="shop-container">
-          <h3>🛒 Кибер-Маркет Прокачки</h3>
-
-          <!-- Товар 1 -->
-          <div class="shop-item">
-            <div class="item-info">
-              <span class="item-title">Нейросеть-Оптимизатор</span>
-              <span class="item-desc">Клик: +10 XP | Крит: +30 XP</span>
-            </div>
-            <button class="buy-btn" id="buy-click-btn">Купить (3 ✨)</button>
-          </div>
-
-          <!-- Товар 2 -->
-          <div class="shop-item">
-            <div class="item-info">
-              <span class="item-title">Квантовый Сервер</span>
-              <span class="item-desc">ИИ-автокликер: +5 XP/сек</span>
-            </div>
-            <button class="buy-btn" id="buy-auto-btn">Купить (5 ✨)</button>
-          </div>
-
-          <!-- Товар 3 (НОВЫЙ) -->
-          <div class="shop-item">
-            <div class="item-info">
-              <span class="item-title">Удачливый Скрипт</span>
-              <span class="item-desc">Шанс Крит-Удачи: 20% ➔ 40%!</span>
-            </div>
-            <button class="buy-btn" id="buy-luck-btn">Купить (8 ✨)</button>
-          </div>
-
-          <!-- Товар 4 (СУПЕР-ДОРЕГОЙ) -->
-          <div class="shop-item">
-            <div class="item-info">
-              <span class="item-title">Космический ИИ-Оверлорд</span>
-              <span class="item-desc">Автокликер дает бешеные +25 XP/сек</span>
-            </div>
-            <button class="buy-btn" id="buy-mega-btn">Купить (15 ✨)</button>
-          </div>
-        </div>
-
-        <!-- Кнопка сброса -->
-        <button class="reset-button" id="reset-btn">
-          ❌ Сбросить весь прогресс
-        </button>
+      <div class="settings">
+        <label for="difficulty">Сложность вратаря:</label>
+        <select id="difficulty">
+          <option value="easy">Легко (Бот зевает)</option>
+          <option value="medium">Нормально (Рандом)</option>
+          <option value="hard" selected>Хардкор (Бот читает мысли)</option>
+        </select>
       </div>
-    </main>
+
+      <div class="scoreboard">
+        <div>
+          Вы (Игрок):
+          <div id="player-score" class="score">0</div>
+        </div>
+        <div>
+          <div>Серия ударов:</div>
+          <div class="series-dots" id="dots-container">
+            <div class="dot" id="dot-0"></div>
+            <div class="dot" id="dot-1"></div>
+            <div class="dot" id="dot-2"></div>
+            <div class="dot" id="dot-3"></div>
+            <div class="dot" id="dot-4"></div>
+          </div>
+        </div>
+        <div>
+          Бот (Вратарь):
+          <div id="gk-score" class="score">0</div>
+        </div>
+      </div>
+
+      <!-- Новый блок: Индикатор силы удара -->
+      <div class="power-container">
+        <label>Сила удара (Не бейте в красную зону!):</label>
+        <div class="power-bar-wrapper">
+          <div class="power-bar" id="power-bar"></div>
+          <div class="power-zone"></div>
+        </div>
+      </div>
+
+      <div class="pitch">
+        <div class="goal">
+          <div id="goalkeeper" class="goalkeeper">🧍‍♂️</div>
+        </div>
+        <div id="ball" class="ball"></div>
+      </div>
+
+      <div class="controls">
+        <button onclick="kick('left')">Влево ←</button>
+        <button onclick="kick('center')">По центру ↑</button>
+        <button onclick="kick('right')">Вправо →</button>
+      </div>
+
+      <div id="result" class="result-text">Загрузка игры...</div>
+    </div>
 
     <script src="script.js"></script>
   </body>
