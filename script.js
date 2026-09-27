@@ -1,224 +1,319 @@
-let playerScore = 0;
-let gkScore = 0;
-let currentShot = 0;
-const defaultMaxShots = 5;
-let isPlaying = false;
-let gameEnded = false;
+const predictions = [
+  "Сегодня идеальный день, чтобы написать крутой код! 💻",
+  "Тебя ждет неожиданный, но очень приятный сюрприз. 🎁",
+  "Твои старания скоро принесут отличные результаты! 🚀",
+  "Кто-то думает о тебе прямо сейчас и улыбается. 😊",
+  "Сделай паузу и выпей чаю, ты отлично справляешься! ☕",
+  "Твой код запустится с первого раза без единой ошибки! 🐛✨",
+];
+const colors = [
+  "rgba(255,234,167,0.85)",
+  "rgba(250,177,160,0.85)",
+  "rgba(116,185,255,0.85)",
+  "rgba(162,155,254,0.85)",
+  "rgba(85,239,196,0.85)",
+];
 
-// Переменные для шкалы силы
-let power = 0;
-let powerDirection = 1;
-let powerInterval = null;
-let currentPowerValue = 0;
-
-const sndKick = new Audio("https://mixkit.co");
-const sndGoal = new Audio("https://mixkit.co");
-const sndSave = new Audio("https://mixkit.co");
-const sndWhistle = new Audio("https://mixkit.co");
-const sndMiss = new Audio("https://mixkit.co"); // Звук промаха
-
-const ball = document.getElementById("ball");
-const goalkeeper = document.getElementById("goalkeeper");
-const resultText = document.getElementById("result");
-const playerScoreEl = document.getElementById("player-score");
-const gkScoreEl = document.getElementById("gk-score");
-const difficultySelect = document.getElementById("difficulty");
-const buttons = document.querySelectorAll(".controls button");
-const powerBar = document.getElementById("power-bar");
-const dotsContainer = document.getElementById("dots-container");
-
-// Запуск анимации шкалы силы
-function startPowerBar() {
-  if (gameEnded || isPlaying) return;
-  clearInterval(powerInterval);
-  power = 0;
-  powerDirection = 1;
-
-  powerInterval = setInterval(() => {
-    power += 4 * powerDirection;
-    if (power >= 100) {
-      power = 100;
-      powerDirection = -1;
-    }
-    if (power <= 0) {
-      power = 0;
-      powerDirection = 1;
-    }
-    powerBar.style.width = power + "%";
-  }, 25);
+function getRankName(level) {
+  if (level >= 30) return "🌌 ИИ ОВЕРЛОРД / БОГ СЕТИ 🌌";
+  if (level >= 25) return "👑 Архитектор Метавселенной";
+  if (level >= 20) return "🚀 Основатель Кибер-Корпорации";
+  if (level >= 15) return "💼 Технический Директор (CTO)";
+  if (level >= 10) return "👔 Тимлид / Кибер-Семпай";
+  if (level >= 7) return "🛠️ Фуллстек Ниндзя";
+  if (level >= 5) return "🎨 Фронтенд Мастер";
+  if (level >= 3) return "⚡ Уверенный скриптер";
+  if (level >= 2) return "🧑‍💻 Джуниор-верстальщик";
+  return "👶 Нубик";
 }
 
-// Запускаем шкалу сразу при старте страницы
-window.onload = () => {
-  startPowerBar();
-};
+// Загрузка состояния игры из памяти браузера
+let xp = Number(localStorage.getItem("g_xp")) || 0;
+let currentLevel = Number(localStorage.getItem("g_level")) || 1;
+let clicksNeeded = Number(localStorage.getItem("g_needed")) || 5;
+let critTokens = Number(localStorage.getItem("g_tokens")) || 0;
 
-function getGoalkeeperDirection(playerPosition) {
-  const diff = difficultySelect.value;
-  const directions = ["left", "center", "right"];
+// Состояние 4-х бустов
+let hasClickUpgrade = localStorage.getItem("g_b_click") === "true";
+let hasAutoUpgrade = localStorage.getItem("g_b_auto") === "true";
+let hasLuckUpgrade = localStorage.getItem("g_b_luck") === "true";
+let hasMegaUpgrade = localStorage.getItem("g_b_mega") === "true";
 
-  if (diff === "easy") {
-    if (Math.random() < 0.15) return playerPosition;
-    const wrongDirections = directions.filter((d) => d !== playerPosition);
-    return wrongDirections[Math.floor(Math.random() * wrongDirections.length)];
-  } else if (diff === "hard") {
-    if (Math.random() < 0.6) return playerPosition;
-    const otherDirections = directions.filter((d) => d !== playerPosition);
-    return otherDirections[Math.floor(Math.random() * otherDirections.length)];
+const button = document.getElementById("btn");
+const textElement = document.getElementById("text");
+const cardElement = document.getElementById("card");
+const rankNameElement = document.getElementById("rank-name");
+const xpFillElement = document.getElementById("xp-fill");
+const clicksLeftElement = document.getElementById("clicks-left");
+const autoStatus = document.getElementById("auto-status");
+const tokensDisplay = document.getElementById("crit-tokens-count");
+
+// Кнопки магазина и сброса
+const buyClickBtn = document.getElementById("buy-click-btn");
+const buyAutoBtn = document.getElementById("buy-auto-btn");
+const buyLuckBtn = document.getElementById("buy-luck-btn");
+const buyMegaBtn = document.getElementById("buy-mega-btn");
+const resetBtn = document.getElementById("reset-btn");
+
+let autoClickInterval = null;
+
+function saveGame() {
+  localStorage.setItem("g_xp", xp);
+  localStorage.setItem("g_level", currentLevel);
+  localStorage.setItem("g_needed", clicksNeeded);
+  localStorage.setItem("g_tokens", critTokens);
+  localStorage.setItem("g_b_click", hasClickUpgrade);
+  localStorage.setItem("g_b_auto", hasAutoUpgrade);
+  localStorage.setItem("g_b_luck", hasLuckUpgrade);
+  localStorage.setItem("g_b_mega", hasMegaUpgrade);
+}
+
+function updateAutoClicker() {
+  if (autoClickInterval) clearInterval(autoClickInterval);
+
+  if (currentLevel >= 30) {
+    autoStatus.style.display = "block";
+    autoStatus.textContent = "🌌 Сингулярность: +100 XP/сек";
+    autoClickInterval = setInterval(() => {
+      xp += 100;
+      checkLevelUp();
+      saveGame();
+    }, 1000);
+    return;
+  }
+
+  if (currentLevel >= 2) {
+    autoStatus.style.display = "block";
+
+    let passiveXp = 1;
+    if (hasAutoUpgrade) passiveXp += 4;
+    if (hasMegaUpgrade) passiveXp += 24;
+
+    autoStatus.textContent = `🤖 Пассивный ИИ-доход: +${passiveXp} XP/сек`;
+
+    autoClickInterval = setInterval(() => {
+      xp += passiveXp;
+      checkLevelUp();
+      saveGame();
+    }, 1000);
   } else {
-    return directions[Math.floor(Math.random() * directions.length)];
+    autoStatus.style.display = "none";
   }
 }
 
-function kick(playerPosition) {
-  if (isPlaying || gameEnded) return;
-  isPlaying = true;
+function updateShopUI() {
+  tokensDisplay.textContent = critTokens;
 
-  // Останавливаем шкалу силы и фиксируем значение
-  clearInterval(powerInterval);
-  currentPowerValue = power;
-  difficultySelect.disabled = true;
+  // 1. Апгрейд Клика
+  if (hasClickUpgrade) {
+    buyClickBtn.textContent = "АКТИВНО";
+    buyClickBtn.disabled = true;
+  } else {
+    buyClickBtn.textContent = "Купить (3 ✨)";
+    buyClickBtn.disabled = critTokens < 3;
+  }
 
-  sndKick.currentTime = 0;
-  sndKick
-    .play()
-    .catch((e) => console.log("Нажмите на экран для активации звуков"));
+  // 2. Апгрейд Автокликера
+  if (hasAutoUpgrade) {
+    buyAutoBtn.textContent = "АКТИВНО";
+    buyAutoBtn.disabled = true;
+  } else {
+    buyAutoBtn.textContent = "Купить (5 ✨)";
+    buyAutoBtn.disabled = critTokens < 5;
+  }
 
-  goalkeeper.className = "goalkeeper";
-  ball.className = "ball";
+  // 3. Апгрейд Удачи
+  if (hasLuckUpgrade) {
+    buyLuckBtn.textContent = "АКТИВНО";
+    buyLuckBtn.disabled = true;
+  } else {
+    buyLuckBtn.textContent = "Купить (8 ✨)";
+    buyLuckBtn.disabled = critTokens < 8;
+  }
 
-  // Проверка на перебор силы (более 85% — удар выше ворот)
-  const isTooStrong = currentPowerValue > 85;
+  // 4. Мега-Апгрейд ИИ
+  if (hasMegaUpgrade) {
+    buyMegaBtn.textContent = "АКТИВНО";
+    buyMegaBtn.disabled = true;
+  } else {
+    buyMegaBtn.textContent = "Купить (15 ✨)";
+    buyMegaBtn.disabled = critTokens < 15;
+  }
+}
 
-  setTimeout(() => {
-    const gkPosition = getGoalkeeperDirection(playerPosition);
-    goalkeeper.classList.add(`gk-${gkPosition}`);
+function checkLevelUp() {
+  if (currentLevel >= 30) {
+    rankNameElement.textContent = getRankName(currentLevel);
+    xpFillElement.style.width = "100%";
+    clicksLeftElement.textContent = "МАКС";
+    button.textContent = "ТЫ СТАЛ БОГОМ СЕТИ!";
+    button.disabled = true;
+    return;
+  }
 
-    if (isTooStrong) {
-      // Мяч улетает выше ворот
-      ball.classList.add(`ball-${playerPosition}`, "ball-high");
+  if (xp >= clicksNeeded) {
+    xp = xp - clicksNeeded;
+    currentLevel++;
+    clicksNeeded = clicksNeeded + 6;
+
+    updateAutoClicker();
+
+    if (currentLevel === 30) {
+      alert(`🏆 СВЕРШИЛОСЬ! Ты покорил 30 уровень и вошел в вечность!`);
     } else {
-      ball.classList.add(`ball-${playerPosition}`);
+      alert(`🎉 Ранг повышен! Твой статус: ${getRankName(currentLevel)}`);
     }
+  }
+
+  rankNameElement.textContent = getRankName(currentLevel);
+  if (currentLevel < 30) {
+    xpFillElement.style.width = (xp / clicksNeeded) * 100 + "%";
+    clicksLeftElement.textContent = Math.max(0, clicksNeeded - xp);
+  }
+}
+
+// Обработчики кнопок магазина
+buyClickBtn.addEventListener("click", () => {
+  if (critTokens >= 3 && !hasClickUpgrade) {
+    critTokens -= 3;
+    hasClickUpgrade = true;
+    saveGame();
+    updateShopUI();
+    updateButtonText(0);
+  }
+});
+
+buyAutoBtn.addEventListener("click", () => {
+  if (critTokens >= 5 && !hasAutoUpgrade) {
+    critTokens -= 5;
+    hasAutoUpgrade = true;
+    saveGame();
+    updateShopUI();
+    updateAutoClicker();
+  }
+});
+
+buyLuckBtn.addEventListener("click", () => {
+  if (critTokens >= 8 && !hasLuckUpgrade) {
+    critTokens -= 8;
+    hasLuckUpgrade = true;
+    saveGame();
+    updateShopUI();
+  }
+});
+
+buyMegaBtn.addEventListener("click", () => {
+  if (critTokens >= 15 && !hasMegaUpgrade) {
+    critTokens -= 15;
+    hasMegaUpgrade = true;
+    saveGame();
+    updateShopUI();
+    updateAutoClicker();
+  }
+});
+
+// 🔥 НАДЁЖНАЯ ЛОГИКА ПОЛНОГО СБРОСА ПРОГРЕССА
+resetBtn.addEventListener("click", () => {
+  if (
+    confirm(
+      "Ты точно хочешь СБРОСИТЬ ВЕСЬ ПРОГРЕСС? Уровень, жетоны и все купленные бусты исчезнут навсегда!",
+    )
+  ) {
+    // 1. Полностью стираем хранилище браузера
+    localStorage.clear();
+    [1];
+
+    // 2. Останавливаем таймер автокликера, чтобы он перестал капать на фоне
+    if (autoClickInterval) clearInterval(autoClickInterval);
+
+    // 3. Возвращаем все переменные кода в начальное состояние
+    xp = 0;
+    currentLevel = 1;
+    clicksNeeded = 5;
+    critTokens = 0;
+    hasClickUpgrade = false;
+    hasAutoUpgrade = false;
+    hasLuckUpgrade = false;
+    hasMegaUpgrade = false;
+
+    // 4. Разблокируем главную кнопку клика на случай, если был 30 уровень
+    button.disabled = false;
+
+    // 5. Перезагружаем страницу, чтобы игра началась абсолютно заново с чистого листа
+    location.reload();
+  }
+});
+
+function updateButtonText(isCrit) {
+  if (currentLevel >= 30) return;
+  let normalGive = hasClickUpgrade ? 10 : 1;
+  let Math_critGive = hasClickUpgrade ? 30 : 5;
+  button.textContent = isCrit
+    ? `Написать код (+${Math_critGive} XP)`
+    : `Написать код (+${normalGive} XP)`;
+}
+
+// Инициализация игры при старте
+checkLevelUp();
+updateAutoClicker();
+updateShopUI();
+updateButtonText(0);
+// Важно: принудительно делаем кнопку сброса всегда активной, чтобы на неё не влияли стили магазина!
+resetBtn.disabled = false;
+
+button.addEventListener("click", function () {
+  if (currentLevel >= 30) return;
+
+  const critLimit = hasLuckUpgrade ? 40 : 20;
+  const chance = Math.floor(Math.random() * 100);
+
+  cardElement.classList.remove("epic-appearance");
+  const oldSecret = document.getElementById("secret-content");
+  if (oldSecret) {
+    oldSecret.remove();
+  }
+  textElement.style.display = "block";
+
+  if (chance < critLimit) {
+    let critGive = hasClickUpgrade ? 30 : 5;
+    xp += critGive;
+    critTokens += 1;
+
+    cardElement.style.backgroundColor = "rgba(45, 52, 54, 0.96)";
+    textElement.style.display = "none";
 
     setTimeout(() => {
-      // Динамически ищем или создаем точку на табло (для режима Золотого гола)
-      let currentDot = document.getElementById(`dot-${currentShot}`);
-      if (!currentDot && !gameEnded) {
-        currentDot = document.createElement("div");
-        currentDot.className = "dot";
-        currentDot.id = `dot-${currentShot}`;
-        dotsContainer.appendChild(currentDot);
-      }
+      cardElement.classList.add("epic-appearance");
+    }, 10);
 
-      if (isTooStrong) {
-        // ВЫШЕ ВОРОТ
-        resultText.innerHTML =
-          "<span style='color: #f44336;'>ВЫШЕ ВОРОТ! Слишком сильный удар! 🦅</span>";
-        if (currentDot) currentDot.classList.add("miss");
-        sndMiss.currentTime = 0;
+    const secretContainer = document.createElement("div");
+    secretContainer.id = "secret-content";
+    secretContainer.className = "fade-up-text";
 
-        sndMiss.play();
-      } else if (playerPosition === gkPosition) {
-        // СЕЙВ
-        goalkeeper.innerText = "🧤";
-        resultText.innerHTML =
-          "<span style='color: #ffca28;'>ВРАТАРЬ ОТБИЛ! 🧤</span>";
-        gkScore++;
-        gkScoreEl.innerText = gkScore;
-        if (currentDot) currentDot.classList.add("miss");
-        sndSave.currentTime = 0;
-        sndSave.play();
-      } else {
-        // ГОЛ
-        goalkeeper.innerText = "😭";
-        resultText.innerHTML =
-          "<span style='color: #66bb6a;'>ГОООООЛ! 🎉⚽</span>";
-        playerScore++;
-        playerScoreEl.innerText = playerScore;
-        if (currentDot) currentDot.classList.add("goal");
-        sndGoal.currentTime = 0;
-        sndGoal.play();
-      }
+    secretContainer.innerHTML = `
+            <h3 style="color: #00cec9; margin-top: 0; font-size: 20px;">✨ КРИТ УДАЧА ✨</h3>
+            <p style="color: #55efc4; font-weight: bold; margin: 2px 0;">БОНУС: +${critGive} XP! 🚀</p>
+            <p style="color: #e73c7e; font-size: 11px; margin: 2px 0;">+1 Крит-жетон получен!</p>
+            <img src="https://postimg.cc" alt="Мем" style="width: 100%; max-width: 140px; border-radius: 10px; margin-bottom: 5px;">
+        `;
 
-      currentShot++;
-
-      setTimeout(() => {
-        // Проверка завершения игры или переход к Золотому голу
-        if (currentShot >= defaultMaxShots) {
-          if (playerScore === gkScore) {
-            // Режим Золотого Гола
-            resultText.innerHTML =
-              "<span style='color: #ffeb3b;'>Ничья! Играем до первого промаха (Золотой гол)! ⚔️</span>";
-            prepareNextShot();
-          } else {
-            endGame();
-          }
-        } else {
-          prepareNextShot();
-        }
-      }, 1400);
-    }, 350);
-  }, 50);
-}
-
-function prepareNextShot() {
-  goalkeeper.className = "goalkeeper";
-  goalkeeper.innerText = "🧍‍♂️";
-  ball.className = "ball";
-  if (!gameEnded) {
-    resultText.innerText = `Удар ${currentShot + 1}. Накапливайте силу и бейте!`;
-    isPlaying = false;
-    startPowerBar(); // Перезапускаем бегущую шкалу силы
-  }
-}
-
-function endGame() {
-  gameEnded = true;
-  clearInterval(powerInterval);
-  sndWhistle.play();
-
-  buttons.forEach((btn) => (btn.disabled = true));
-
-  let finalMessage = "";
-  if (playerScore > gkScore) {
-    finalMessage = `🏆 ВЫ ПОБЕДИЛИ! Счет: ${playerScore}:${gkScore}`;
+    cardElement.insertBefore(secretContainer, button);
+    updateButtonText(1);
   } else {
-    finalMessage = `❌ Бот выиграл серию! Счет: ${playerScore}:${gkScore}`;
+    let normalGive = hasClickUpgrade ? 10 : 1;
+    xp += normalGive;
+
+    const randomPredictionIndex = Math.floor(
+      Math.random() * predictions.length,
+    );
+    const randomColorIndex = Math.floor(Math.random() * colors.length);
+
+    textElement.textContent = predictions[randomPredictionIndex];
+    cardElement.style.backgroundColor = colors[randomColorIndex];
+    updateButtonText(0);
   }
 
-  resultText.innerHTML = `
-        <div style='font-size:1.6rem; color:#fff; margin-bottom:10px;'>${finalMessage}</div>
-        <button onclick='resetGame()' class='restart-btn'>Играть снова</button>
-    `;
-}
-
-function resetGame() {
-  playerScore = 0;
-  gkScore = 0;
-  currentShot = 0;
-  isPlaying = false;
-  gameEnded = false;
-
-  playerScoreEl.innerText = "0";
-  gkScoreEl.innerText = "0";
-  difficultySelect.disabled = false;
-  resultText.innerText = "Выберите направление для первого удара!";
-
-  goalkeeper.className = "goalkeeper";
-  goalkeeper.innerText = "🧍‍♂️";
-  ball.className = "ball";
-
-  buttons.forEach((btn) => (btn.disabled = false));
-
-  // Перерисовываем стандартные 5 точек табло
-  dotsContainer.innerHTML = `
-        <div class="dot" id="dot-0"></div>
-        <div class="dot" id="dot-1"></div>
-        <div class="dot" id="dot-2"></div>
-        <div class="dot" id="dot-3"></div>
-        <div class="dot" id="dot-4"></div>
-    `;
-
-  startPowerBar();
-}
+  checkLevelUp();
+  updateShopUI();
+  saveGame();
+});
